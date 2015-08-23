@@ -38,13 +38,21 @@
       "type": "script",
       "url": "scripts/LD33/data.js"
     }, {
+      "id": "scripts/minions",
+      "type": "script",
+      "url": "scripts/LD33/minions.js"
+    }, {
       "id": "gui/play",
       "type": "xml",
-      "url": "assets/gui.svg"
+      "url": "assets/play.svg"
     }, {
-      "id": "gui/theVP",
+      "id": "gui/stations",
       "type": "xml",
-      "url": "assets/inside.svg"
+      "url": "assets/stations.svg"
+    }, {
+      "id": "gui/population",
+      "type": "xml",
+      "url": "assets/population.svg"
     }
   ]
 }

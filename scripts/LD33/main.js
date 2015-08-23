@@ -23,13 +23,17 @@ base.registerModule('main', function(module) {
     var menu = base.importModule('menu');
     var gui = base.importModule('gui');
     var data = base.importModule('data');
+    var minions = base.importModule('minions');
     
     data.init();
+    new menu.MenuPlay();
+    minions.init();
     
     var menuManager = new gui.MenuManager();
     module.menuMananger = menuManager;
-    menuManager.setMenu(new menu.MenuPlay());
+    menuManager.setMenu(menu.MenuPlay.instance);
     engine.World.instance.addSprite(menuManager);
+    engine.World.instance.addSprite(minions.Game.instance);
   };
  
   startLoading();
