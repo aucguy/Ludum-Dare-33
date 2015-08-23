@@ -50,6 +50,21 @@ base.registerModule('xml', function(module) {
     }
     return obj;
   };
+  
+  /**
+   * parses CSS inline styles
+   */
+  module.parseStyle = function(style, splitChar) {
+    var obj = {};
+    var pairs = style.split(splitChar);
+    for (var i = 0; i < pairs.length; i++) {
+      var parts = pairs[i].split(":");
+      if (parts.length == 2) {
+        obj[parts[0]] = parts[1];
+      }
+    }
+    return obj;
+  };
 
   /**
    * makes sure a DOM element is a certain type. If the element is of the
@@ -80,6 +95,8 @@ base.registerModule('xml', function(module) {
    */
   module.removeMetadata = function(dom) {
     var metadata = dom.getElementsByTagName("metadata")[0];
-    metadata.parentNode.removeChild(metadata);
+    if(metadata !== null && metadata !== undefined) {
+      metadata.parentNode.removeChild(metadata);
+    }
   };
 });

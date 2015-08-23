@@ -118,17 +118,25 @@ base.registerModule('resource', function(module) {
     document.head.appendChild(element);
     resources[id] = element;
   };
-
-  var loaders = {
-    json : module.loadJson,
-    image : module.loadImage,
-    script : module.loadScript
-  };
-
+  
   /**
    * handle for loading xml data
    */
-  // module.loadXml = xml.parseXml;
+  module.loadXml = function loadXml(id, url, resource, callback) {
+    loadResource(id, url, function(text) {
+      var xml = base.importModule('xml');
+      return xml.parseXml(text);
+    }, callback);
+  };
+  
+  var loaders = {
+    json : module.loadJson,
+    image : module.loadImage,
+    script : module.loadScript,
+    xml : module.loadXml
+  };
+
+
   /**
    * handle for loading svgs
    * 

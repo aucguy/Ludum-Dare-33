@@ -58,6 +58,17 @@ base.registerModule('util', function(module) {
   module.randDegree = function randDegree() {
     return util.randInt(0, 359);
   };
+  
+  /**
+   * returns a shallow copy of an Array or array like object
+   */
+  module.copyArray = function copyArray(array) {
+    var make = [];
+    for(var i=0; i<array.length; i++) {
+      make[i] = array[i];
+    }
+    return make;
+  };
 
   /**
    * a vector. like in normal math. The arguments are the vector's components.

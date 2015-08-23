@@ -111,6 +111,17 @@ base.registerModule('engine', function(module) {
   });
   module.EventMouseDown = EventMouseDown;
   EventMouseDown.ID = Event.nextEventId();
+  
+  /**
+   * posted when the mouse is pressed up
+   */
+  var EventMouseUp = base.extend(EventMouse, 'EventMouseUp', {
+    constructor : function(x, y) {
+      this.constructor$EventMouse(x, y, EventMouseUp.ID);
+    }
+  });
+  module.EventMouseUp = EventMouseUp;
+  EventMouseUp.ID = Event.nextEventId();
 
   /**
    * posted when the mouse moves
@@ -636,6 +647,10 @@ base.registerModule('engine', function(module) {
     handleMouseUp : function handleMouseUp(event) {
       if (isLeftButton(event.button)) {
         this.mouseDown = false;
+        
+        var x = event.clientX - document.getElementById(module.DISPLAY_ID).getBoundingClientRect().left;
+        var y = event.clientY - document.getElementById(module.DISPLAY_ID).getBoundingClientRect().top;
+        this.onEvent(new EventMouseUp(x, y));
       }
     },
 
