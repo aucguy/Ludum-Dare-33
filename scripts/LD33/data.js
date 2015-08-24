@@ -16,6 +16,11 @@
    module.PP_COPPER = 3;
    module.PP_IRON = 5;
    
+   module.CAVE_HURT = 0.5;
+   module.MIN_CAVE_HP = 5;
+   module.MAX_HP = 10;
+   module.PLAYER_TOUGHNESS = 25;
+   
    module.init = function init() {
      
    };

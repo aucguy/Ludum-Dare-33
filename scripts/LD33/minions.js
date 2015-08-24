@@ -2,6 +2,7 @@ base.registerModule('minions', function(module) {
   var menu = base.importModule('menu');
   var engine = base.importModule('engine');
   var data = base.importModule('data');
+  var main = base.importModule('main');
   
   function setVariable(key, value) {
     menu.MenuPlay.instance.variables[key] = value;
@@ -13,9 +14,14 @@ base.registerModule('minions', function(module) {
   var Minion = base.extend(Object, 'Minion', {
     constructor: function Minion() {
       this.skillFarming = 1;
-      this.skillMining = 2;
-      this.hp = 10;
+      this.skillMining = 1;
+      this.skillCrafting = 1;
+      this.skillFighting = 1;
+      this.hp = data.MAX_HP;
       this.name = "John Smith";
+      this.healing = false; //whether or not the minion is resting in the caves to heal
+      this.equipment = "none";
+      this.spells = [];
     },
     /**
      * synchronizes the minion data with the gui
@@ -25,6 +31,10 @@ base.registerModule('minions', function(module) {
       setVariable(prefix + ".name", this.name);
       setVariable(prefix + ".farmSkill", this.skillFarming);
       setVariable(prefix + ".mineSkill", this.skillMining);
+      setVariable(prefix + ".craftSkill", this.skillCrafting);
+      setVariable(prefix + ".fightSkill", this.skillFighting);
+      setVariable(prefix + ".hp", this.hp);
+      setVariable(prefix + ".equipment", this.equipment);
     },
     /**
      * returns the skill at a particular station
@@ -35,6 +45,8 @@ base.registerModule('minions', function(module) {
         return this.skillFarming;
       } else if(name == "mountains") {
         return this.skillMining;
+      } else if(name == "workshop") {
+        return this.skillCrafting;
       }
       return 0;
     },
@@ -43,6 +55,16 @@ base.registerModule('minions', function(module) {
         this.skillFarming++;
       } else if(station.name == "mountains") {
         this.skillMining++;
+      } else if(station.name == "workshop") {
+        this.skillCrafting++;
+      } else if(station.name == "caves" && !this.healing) {
+        this.skillFighting++;
+      }
+      if(this.hp < data.MAX_HP) {
+        this.hp++;
+        if(this.hp == data.MAX_HP) {
+          this.healing = false;
+        }
       }
       this.syncSlot(station.name, slot);
     },
@@ -54,6 +76,33 @@ base.registerModule('minions', function(module) {
         fields.supplies.food--;
       }
     },
+    getPower: function getPower() {
+      return this.skillFighting + this.getEquipmentBonus();
+    },
+    getToughness: function getPower() {
+      return this.hp + this.getEquipmentBonus();
+    },
+    getEquipmentBonus: function getEquipmentBonus() {
+      if(this.equipment == 'tin') {
+        return 1;
+      } else if(this.equipment == 'copper') {
+        return 2;
+      } else if (this.equipment == 'iron') {
+        return 3;
+      }
+      return 0;
+    },
+    damage: function damaage(station, slot, amount) {
+      this.hp -= amount;
+      if(this.hp <= 0) {
+        station.removeMinion(this);
+      } else {
+        if(this.hp < data.MIN_CAVE_HP) {
+          this.healing = true;
+        }
+        this.syncSlot(station.name, slot);
+      }
+    }
   });
   
   /**
@@ -71,17 +120,25 @@ base.registerModule('minions', function(module) {
       } else if(this.name == "mountains") {
         this.supplies = {tin: 0, copper: 0, iron: 0};
         this.producing = {tin: 0, copper: 0, iron: 0};
+      } else if(this.name == "workshop") {
+        this.supplies = {tinA: 0, copperA: 0, ironA: 0};
+        this.producing = {tinA: 0, copperA: 0, ironA: 0};
       } else {
         this.supplies = {};
+        this.producing = {};
       }
       this.removals = [];
       this.syncGui();
+      for(var i=0; i<this.maxMinions; i++) {
+        this.clearSlot(i);
+      }
     },
     addMinion : function addMinion(minion) {
       if(this.minions.length < this.maxMinions) {
         this.minions.push(minion);
         minion.syncSlot(this.name, this.minions.length-1);
         this.calculateProduction();
+        this.syncGui();
         return true;
       }
       return false;
@@ -94,10 +151,20 @@ base.registerModule('minions', function(module) {
       if(this.removals.length === 0) {
         return;
       }
+      var selected = Game.instance.selectedSlot;
       for(i=0; i<this.removals.length; i++) {
         var minion = this.removals[i];
         var index = this.minions.indexOf(minion);
         if(index != -1) {
+          if(selected !== null && this == selected.station) {
+            if(index == selected.slot) {
+              selected = null;
+              Game.instance.setSelectedSlot(selected);
+            } else if(index < selected.slot) {
+              selected = {station: selected.station, slot: selected.slot-1};
+              Game.instance.setSelectedSlot(selected);
+            }
+          }
           this.minions.splice(index, 1);
         }
       }
@@ -132,6 +199,16 @@ base.registerModule('minions', function(module) {
           } else {
             break;
           }
+        } else if(this.name == 'workshop') {
+          if(this.producing.tinA > 0) {
+            this.producing.tinA--;
+          } else if(this.producing.copperA > 0) {
+            this.producing.copperA--;
+          } else if(this.producing.ironA > 0) {
+            this.producing.ironA--;
+          } else {
+            break;
+          }
         } else {
           break;
         }
@@ -145,6 +222,10 @@ base.registerModule('minions', function(module) {
       setVariable(prefix + '.name', 'null');
       setVariable(prefix + '.farmSkill', 0);
       setVariable(prefix + '.mineSkill', 0);
+      setVariable(prefix + '.craftSkill', 0);
+      setVariable(prefix + '.fightSkill', 0);
+      setVariable(prefix + '.hp', 0);
+      setVariable(prefix + '.equipment', 'none');
     },
     gatherSupplies: function gatherSupplies() {
       if(this.name == "fields") {
@@ -154,6 +235,34 @@ base.registerModule('minions', function(module) {
         this.supplies.tin += this.producing.tin;
         this.supplies.copper += this.producing.copper;
         this.supplies.iron += this.producing.iron;
+      } else if(this.name == "workshop") {
+        var mountains = Game.instance.stationMountains;
+        var change;
+        if(mountains.supplies.tin > 0) {
+          change = Math.min(this.producing.tinA, mountains.supplies.tin);
+          mountains.supplies.tin -= change;
+          this.supplies.tinA += change;
+        }
+        if(mountains.supplies.copper > 0) {
+          change = Math.min(this.producing.copperA, mountains.supplies.copper);
+          mountains.supplies.copper -= change;
+          this.supplies.copperA += change;
+        }
+        if(mountains.supplies.iron > 0) {
+          change = Math.min(this.producing.ironA, mountains.supplies.iron);
+          mountains.supplies.iron -= change;
+          this.supplies.ironA += change;
+        }
+        mountains.syncGui();
+      } else if(this.name == "caves") {
+        for(var i=0; i<this.minions.length; i++) {
+          var minion = this.minions[i];
+          var rand = Math.random() - minion.getEquipmentBonus();
+          if(!minion.healing && rand < data.CAVE_HURT) {
+            minion.damage(this, i, 1);
+          }
+        }
+        this.flushRemovals();
       }
       this.syncGui();
     },
@@ -190,8 +299,17 @@ base.registerModule('minions', function(module) {
         setVariable('ironText', this.supplies.iron);
         setVariable('oreText', this.producing.tin + '/' + this.producing.copper +
             '/' + this.producing.iron);
+      } else if(this.name == "workshop") {
+        setVariable('tinAText', this.supplies.tinA);
+        setVariable('copperAText', this.supplies.copperA);
+        setVariable('ironAText', this.supplies.ironA);
+        setVariable('armorText', this.producing.tinA + '/' + this.producing.copperA + 
+            '/' + this.producing.ironA);
       }
       setVariable(this.name + ".PP", this.getTotalProducing() + '/' + this.production);
+      if(Game.instance !== null) {
+        Game.instance.syncGui();
+      }
     },
     produceMore: function produceMore(supply) {
       this.producing[supply]++;
@@ -218,6 +336,10 @@ base.registerModule('minions', function(module) {
         return this.producing.tin * data.PP_TIN + 
                 this.producing.copper * data.PP_COPPER + 
                 this.producing.iron * data.PP_IRON;
+      } else if(this.name == "workshop") {
+        return this.producing.tinA * data.PP_TIN +
+                this.producing.copperA * data.PP_COPPER +
+                this.producing.ironA * data.PP_IRON;
       }
       return 0;
     }
@@ -230,8 +352,15 @@ base.registerModule('minions', function(module) {
     constructor: function Game() {
       this.stationFields = new Station("fields");
       this.stationMountains = new Station("mountains");
-      this.stations = [this.stationFields, this.stationMountains];
+      this.stationWorkshop = new Station("workshop");
+      this.stationCaves = new Station("caves");
+      this.stations = [this.stationFields, this.stationMountains, 
+          this.stationWorkshop, this.stationCaves];
       this.tickCount = 0;
+      this.selectedSlot = null;
+      this.heroPower = 7;
+      this.heroHp = 15;
+      this.syncGui();
     },
     update: engine.listener(engine.EventTick.ID, function update(event) {
       this.tickCount++;
@@ -258,6 +387,9 @@ base.registerModule('minions', function(module) {
       for(var i=0; i<this.stations.length; i++) {
         this.stations[i].levelupMinions();
       }
+      this.heroPower += Math.floor(this.tickCount/24000) + 5;
+      this.heroHp += Math.floor(this.tickCount/24000) + 5;
+      this.syncGui();
     },
     /**
      * eat of die!
@@ -265,6 +397,45 @@ base.registerModule('minions', function(module) {
     feedMinions: function feedMinions() {
       for(var i=0; i<this.stations.length; i++) {
         this.stations[i].feedMinions();
+      }
+    },
+    setSelectedSlot: function syncGui(selected) {
+      var ss = this.selectedSlot;
+      this.selectedSlot = selected;
+      if(ss !== null) {
+        setVariable(ss.station.name + ss.slot + ".selected", undefined);
+      }
+      if(selected !== null) {
+        setVariable(selected.station.name + selected.slot + ".selected", true);
+      }
+    },
+    getSelectedMinion: function getSelectedMinion() {
+      if(this.selectedSlot === null) {
+        return null;
+      }
+      return this.selectedSlot.station.minions[this.selectedSlot.slot];
+    },
+    syncGui: function syncGui() {
+      var playerPower = 0;
+      var playerToughness = 25;
+      for(var i=0; i<this.stations.length; i++) {
+        var station = this.stations[i];
+        for(var k=0; k<station.minions.length; k++) {
+          var minion = station.minions[k];
+          playerPower += minion.getPower();
+          playerToughness += minion.getToughness();
+        }
+      }
+      setVariable('playerText', playerPower + "/" + playerToughness);
+      setVariable('heroText', this.heroPower + "/" + this.heroHp);
+      setVariable('difference', (this.heroPower - playerPower) + "/" +
+        (this.heroHp - playerToughness));
+        
+      //check end conditions
+      if(playerPower > this.heroPower && playerToughness > this.heroHp) {
+        main.menuManager.setMenu(new menu.MenuPlay('gui/win'));
+      } else if(this.heroPower > playerPower && this.heroHp > playerToughness) {
+        main.menuManager.setMenu(new menu.MenuPlay('gui/lose'));
       }
     }
   });
@@ -307,20 +478,98 @@ base.registerModule('minions', function(module) {
       station.produceLess(supply);
     };
   }
+  
+  /**
+   * select a minion on the gui
+   */
+  function selectMinion(station, slot) {
+    return function() {
+      if(station.minions.length > slot) {
+        var selected = {station: station, slot: slot};
+        Game.instance.setSelectedSlot(selected);
+      }
+    };
+  }
+  
+  /**
+   * moves the selected minion to a station
+   */
+  function moveMinion(station) {
+    return function() {
+      var minion = Game.instance.getSelectedMinion();
+      if(minion !== null) {
+        Game.instance.selectedSlot.station.removeMinion(minion);
+        Game.instance.selectedSlot.station.flushRemovals();
+        station.addMinion(minion);
+      }
+    };
+  }
+  
+  /**
+   * equips armor to selected minion
+   */
+  function equipMinion(armor) {
+    return function() {
+      var minion = Game.instance.getSelectedMinion();
+      if(minion !== null) {
+        var supplies = Game.instance.stationWorkshop.supplies;
+        if(supplies[armor + 'A'] > 0){
+          supplies[armor + 'A']--;
+          minion.equipment = armor;
+          var ss = Game.instance.selectedSlot;
+          minion.syncSlot(ss.station.name, ss.slot);
+          Game.instance.syncGui();
+        }
+      }
+    };
+  }
+  
+  function displayInstructions() {
+    Game.instance.parentGroup.removeSprite(Game.instance);
+    main.menuManager.setMenu(new menu.MenuPlay('gui/instructions'));
+  }
    
   module.init = function init() {
     Game.instance = new Game();
     setVariable('summon', summon);
     var game = Game.instance;
     
-    var stations = [['Fields', 'mana', 'food'], ['Mountains', 'tin', 'copper', 'iron']];
-    for(var i=0; i<stations.length; i++) {
-      var station = game['station' + stations[i][0]];
-      for(var k=1; k<stations[i].length; k++) {
+    var stations = [['Fields', 'mana', 'food'], ['Mountains', 'tin', 'copper', 'iron'],
+      ['Workshop', 'tinA', 'copperA', 'ironA']];
+    var station;
+    var i;
+    var k;
+    
+    //production choices
+    for(i=0; i<stations.length; i++) {
+      station = game['station' + stations[i][0]];
+      for(k=1; k<stations[i].length; k++) {
         var supply = stations[i][k];
         setVariable(supply + 'Up', increaseProduction(station, supply));
         setVariable(supply + 'Down', decreaseProduction(station, supply));
       }
     }
+    
+    //minion selection
+    for(i=0; i<game.stations.length; i++) {
+      station = game.stations[i];
+      for(k=0; k<station.maxMinions; k++) {
+        setVariable(station.name + k + ".box", selectMinion(station, k));
+      }
+    }
+    
+    //minion moving
+    for(i=0; i<game.stations.length; i++) {
+      station = game.stations[i];
+      setVariable(station.name + "Move", moveMinion(station));
+    }
+    
+    var armors = ['tin', 'copper', 'iron'];
+    for(i=0; i<armors.length; i++) {
+      var armor = armors[i];
+      setVariable(armor + "Equip", equipMinion(armor));
+    }
+    
+    setVariable('instructions', displayInstructions);
   };
 });

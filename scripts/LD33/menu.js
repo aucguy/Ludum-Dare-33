@@ -37,13 +37,14 @@ base.registerModule('menu', function(module) {
    * the menu for playing
    */
   var MenuPlay = base.extend(gui.Menu, "MenuPlay", {
-    constructor: function MenuPlay() {
+    constructor: function MenuPlay(svgName) {
       this.variables = {};
+      this.svgName = svgName;
       this.constructor$Menu();
       MenuPlay.instance = this;
     },
     addElements: function addElements() {
-      this.mainPanel = new Panel(new util.Rect(0, 0, 640, 480), "gui/play", {name: 'main'});
+      this.mainPanel = new Panel(new util.Rect(0, 0, 640, 480), this.svgName, {name: 'main'}, null);
       this.addSprite(this.mainPanel);
     },
     render: engine.listener(engine.EventRender.ID, function render(event) {
@@ -66,10 +67,11 @@ base.registerModule('menu', function(module) {
    * a gui component
    */
   var Component = base.extend(engine.Sprite, "Component", {
-    constructor: function Component(element, attrs, defaultValue) {
+    constructor: function Component(element, attrs, defaultValue, parentName) {
       this.id = element.id;
-      this.name = attrs == null ? null : attrs.name;
+      this.name = (attrs == null) ? null : attrs.name.replace('-', parentName == null ? "" : parentName);
       this.defaultValue = defaultValue;
+      this.visible = true;
       applyPosition(this, element);
     },
     render: function render(context) {
@@ -89,9 +91,9 @@ base.registerModule('menu', function(module) {
    * an element with that has an svg for viewing inside a viewport
    */
   var Panel = base.extend([engine.Group, Component], "Panel", {
-    constructor: function Panel(viewport, guiName, attrs) {
+    constructor: function Panel(viewport, guiName, attrs, parentName) {
       this.constructor$Group();
-      this.constructor$Component(resource.getResource(guiName), attrs, null);
+      this.constructor$Component(resource.getResource(guiName), attrs, null, parentName);
       this.viewport = viewport;
       this.scrollbarV = null; //used for scrolling
       this.scrollbarH = null;
@@ -114,6 +116,7 @@ base.registerModule('menu', function(module) {
       var scrollbarsV = {};
       var scrollbarsH = {};
       var i;
+      var name;
       for(i=0; i<elements.length; i++) {
         var element = elements[i];
         var component;
@@ -121,18 +124,16 @@ base.registerModule('menu', function(module) {
           var attrs = xml.parseStyle(element.id.substring(1), '_');
           var shouldRemove = true;
           if(attrs.type == 'text') {
-            components.push(new TextComponent(element, attrs));
-          } else if(attrs.type == 'bar') {
-            components.push(new BarComponent(element, attrs));
+            components.push(new TextComponent(element, attrs, this.name));
           } else if(attrs.type == 'button') {
-            components.push(new ButtonComponent(element, attrs));
-            shouldRemove = false;
+            components.push(new ButtonComponent(element, attrs, this.name));
+            shouldRemove = attrs.toggle != null;
           } else if(attrs.type == 'scrollbarV') {
-            component = new ScrollBarV(element, attrs);
+            component = new ScrollBarV(element, attrs, this.name);
             components.push(component);
             scrollbarsV[attrs.name] = component;
           } else if(attrs.type == 'scrollbarH') {
-            component = new ScrollBarH(element, attrs);
+            component = new ScrollBarH(element, attrs, this.name);
             components.push(component);
             scrollbarsH[attrs.name] = component;
           } else if(attrs.type == 'viewport') {
@@ -143,8 +144,8 @@ base.registerModule('menu', function(module) {
             var width = Math.round(element.getAttribute('width'));
             var height = Math.round(element.getAttribute('height'));
             var viewport = new util.Rect(x, y, width, height);
-            var name = attrs.content != null ? attrs.content : attrs.name
-            component = new Panel(viewport, "gui/" + name, attrs);
+            name = attrs.content != null ? attrs.content : attrs.name;
+            component = new Panel(viewport, "gui/" + name, attrs, this.name);
             components.push(component);
             panels[attrs.name] = component;
           }
@@ -155,7 +156,7 @@ base.registerModule('menu', function(module) {
       }
       
       //link panels and scrollbars so scrolling works
-      for(var name in panels) {
+      for(name in panels) {
         var panel = panels[name];
         var scrollbar = scrollbarsV[name];
         if(scrollbar != null) {
@@ -167,7 +168,7 @@ base.registerModule('menu', function(module) {
         }
       }
       
-      this.addSprite(new SvgComponent(svg), null);
+      this.addSprite(new SvgComponent(svg), null, this.name);
       this.width = svg.getElementsByTagName('svg')[0].getAttribute('width');
       this.height = svg.getElementsByTagName('svg')[0].getAttribute('height');
       
@@ -188,7 +189,9 @@ base.registerModule('menu', function(module) {
       
       for(var i=0; i<this.sprites.length; i++) {
         var sprite = this.sprites[i];
-        sprite.render(context);
+        if(sprite.visible) {
+          sprite.render(context);
+        }
       }
       context.restore();
     },
@@ -215,19 +218,19 @@ base.registerModule('menu', function(module) {
       }
     },
     getProgressV: function getProgressV() {
-      return this.scrollbarV === null ? 0 : this.scrollbarV.percent * 
-          (this.height - this.viewport.height);
+      return this.scrollbarV === null ? 0 : Math.round(this.scrollbarV.percent * 
+          (this.height - this.viewport.height));
     },
     getProgressH: function getProgressV() {
-      return this.scrollbarH === null ? 0 : this.scrollbarH.percent * 
-          (this.width - this.viewport.width);
+      return this.scrollbarH === null ? 0 : Math.round(this.scrollbarH.percent * 
+          (this.width - this.viewport.width));
     }
   });
   Panel.prototype.compile();
   
   var SvgComponent = base.extend(Component, "SvgComponent", {
-    constructor: function SvgComponent(svg, attrs) {
-      this.constructor$Component(svg, attrs, null);
+    constructor: function SvgComponent(svg, attrs, parentName) {
+      this.constructor$Component(svg, attrs, null, parentName);
       var image = renderSvg(svg);
       //split up to prevent lag on chrome during ctx.drawImage()
       this.sheet = visual.splitSheet(image, 64, 64);
@@ -244,8 +247,8 @@ base.registerModule('menu', function(module) {
   });
   
   var TextComponent = base.extend(Component, "TextComponent", {
-    constructor: function TextComponent(element, attrs) {
-      this.constructor$Component(element, attrs, "<text>");
+    constructor: function TextComponent(element, attrs, parentName) {
+      this.constructor$Component(element, attrs, "<text>", parentName);
       var offset = base.safeParseInt(element.style.fontSize);
       this.font = element.style.fontSize + " " + element.style.fontFamily;
       var tspan = element.getElementsByTagName('tspan')[0];
@@ -264,15 +267,24 @@ base.registerModule('menu', function(module) {
    * somethings that a rectangle
    */
   var RectComponent = base.extend(Component, "RectComponent", {
-    constructor: function RectComponent(element, attrs) {
-      this.constructor$Component(element, attrs, null);
+    constructor: function RectComponent(element, attrs, defaultValue, parentName) {
+      this.constructor$Component(element, attrs, defaultValue, parentName);
       this.width = Math.round(element.getAttribute('width'));
       this.height = Math.round(element.getAttribute('height'));
       this.fillStyle = element.style.fill;
+      this.strokeStyle = element.style.stroke;
+      this.strokeWidth = base.safeParseInt(element.style['stroke-width']);
     },
     render: function render(context) {
-      context.fillStyle = this.fillStyle;
-      context.fillRect(this.x, this.y, this.getWidth(), this.height);
+      if(this.fillStyle != "none") {
+        context.fillStyle = this.fillStyle;
+        context.fillRect(this.x, this.y, this.getWidth(), this.height);
+      }
+      if(this.strokeStyle != "none") {
+        context.strokeStyle = this.strokeStyle;
+        context.lineWidth = this.strokeWidth;
+        context.strokeRect(this.x, this.y, this.getWidth(), this.height);
+      }
     },
     getWidth: function getWidth() {
       return this.width;
@@ -290,18 +302,11 @@ base.registerModule('menu', function(module) {
     }
   });
   
-  var BarComponent = base.extend(RectComponent, "BarComponent", {
-    constructor: function BarComponent(element, attrs){
-      this.constructor$RectComponent(element, attrs, 0.75);
-    },
-    getWidth: function getWidth() {
-      return this.width * this.getValue();
-    }
-  });
-  
   var ButtonComponent = base.extend(RectComponent, "ButtonComponent", {
-    constructor: function ButtonComponent(element, attrs) {
-      this.constructor$RectComponent(element, attrs, function(){});
+    constructor: function ButtonComponent(element, attrs, parentName) {
+      this.constructor$RectComponent(element, attrs, function(){}, parentName);
+      this.toggle = attrs.toggle == null ? null : 
+          attrs.toggle.replace('-', parentName === null ? '' : parentName);
     },
     onClick: function onClick(x, y) {
       var value = this.getValue(); //calls the value
@@ -310,13 +315,16 @@ base.registerModule('menu', function(module) {
       }
     },
     render: function(context) {
+      if(this.toggle !== null && MenuPlay.instance.variables[this.toggle]) {
+        this.render$RectComponent(context);
+      }
     }
   });
   ButtonComponent.prototype.compile();
   
   var ScrollBarComponent = base.extend(RectComponent, "ScrollBarComponent", {
-    constructor: function ScrollBarComponent(element, attrs) {
-      this.constructor$RectComponent(element, attrs, null);
+    constructor: function ScrollBarComponent(element, attrs, parentName) {
+      this.constructor$RectComponent(element, attrs, null, parentName);
       this.grabPoint = -1; //where the scrollbar was clicked
       this.rangeLow = this.getLow();
       this.rangeHigh = this.getHigh(); //the scrolling range
@@ -350,8 +358,8 @@ base.registerModule('menu', function(module) {
   ScrollBarComponent.prototype.compile();
 
   var ScrollBarV = base.extend(ScrollBarComponent, "ScrollBarV", {
-    constructor: function ScrollBarV(element, attrs) {
-      this.constructor$ScrollBarComponent(element, attrs, null);
+    constructor: function ScrollBarV(element, attrs, parentName) {
+      this.constructor$ScrollBarComponent(element, attrs, null, parentName);
     },
     getLow: function getLow() {
       return this.y;
@@ -371,8 +379,8 @@ base.registerModule('menu', function(module) {
   });
   
   var ScrollBarH = base.extend(ScrollBarComponent, "ScrollBarH", {
-    constructor: function ScrollBarH(element, attrs) {
-      this.constructor$ScrollBarComponent(element, attrs, null);
+    constructor: function ScrollBarH(element, attrs, parentName) {
+      this.constructor$ScrollBarComponent(element, attrs, null, parentName);
     },
     getLow: function getLow() {
       return this.x;

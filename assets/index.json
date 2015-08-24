@@ -53,6 +53,18 @@
       "id": "gui/population",
       "type": "xml",
       "url": "assets/population.svg"
+    }, {
+      "id": "gui/win",
+      "type": "xml",
+      "url": "assets/win.svg"
+    }, {
+      "id": "gui/lose",
+      "type": "xml",
+      "url": "assets/lose.svg"
+    }, {
+      "id": "gui/instructions",
+      "type": "xml",
+      "url": "assets/instructions.svg"
     }
   ]
 }

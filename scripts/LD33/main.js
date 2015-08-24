@@ -26,11 +26,11 @@ base.registerModule('main', function(module) {
     var minions = base.importModule('minions');
     
     data.init();
-    new menu.MenuPlay();
+    new menu.MenuPlay('gui/play');
     minions.init();
     
     var menuManager = new gui.MenuManager();
-    module.menuMananger = menuManager;
+    module.menuManager = menuManager;
     menuManager.setMenu(menu.MenuPlay.instance);
     engine.World.instance.addSprite(menuManager);
     engine.World.instance.addSprite(minions.Game.instance);
