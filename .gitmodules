@@ -1,9 +1,3 @@
-[submodule "scripts/canvg"]
-	path = scripts/canvg
-	url = https://github.com/gabelerner/canvg.git
-[submodule "scripts/glfx"]
-	path = scripts/glfx
-	url = https://github.com/evanw/glfx.js.git
 [submodule "scripts/zeploid"]
 	path = scripts/zeploid
 	url = https://github.com/aucguy/Zeploid.git
