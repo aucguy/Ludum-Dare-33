@@ -4,31 +4,31 @@
     {
       "id": "scripts/engine",
       "type": "script",
-      "url": "scripts/zeploid/engine.js"
+      "url": "scripts/zeploid/src/engine.js"
     }, {
       "id": "scripts/entity",
       "type": "script",
-      "url": "scripts/zeploid/entity.js"
+      "url": "scripts/zeploid/src/entity.js"
     }, {
       "id": "scripts/gui",
       "type": "script",
-      "url": "scripts/zeploid/gui.js"
+      "url": "scripts/zeploid/src/gui.js"
     }, {
       "id": "scripts/level",
       "type": "script",
-      "url": "scripts/zeploid/level.js"
+      "url": "scripts/zeploid/src/level.js"
     }, {
       "id": "scripts/util",
       "type": "script",
-      "url": "scripts/zeploid/util.js"
+      "url": "scripts/zeploid/src/util.js"
     }, {
       "id": "scripts/visual",
       "type": "script",
-      "url": "scripts/zeploid/visual.js"
+      "url": "scripts/zeploid/src/visual.js"
     }, {
       "id": "scripts/xml",
       "type": "script",
-      "url": "scripts/zeploid/xml.js"
+      "url": "scripts/zeploid/src/xml.js"
     }, {
       "id": "scripts/menu",
       "type": "script",
