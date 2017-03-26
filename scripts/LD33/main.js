@@ -9,8 +9,8 @@ base.registerModule('main', function(module) {
    * starts the resource loading
    */
   function startLoading() {
-    resource.setResourcePath('/');
-    resource.loadJson('index', '/assets/index.json', null, resource.query);
+    resource.setResourcePath('');
+    resource.loadJson('index', 'assets/index.json', null, resource.query);
   }
   
   module.menuManager = null;
