@@ -1,6 +1,0 @@
-[submodule "scripts/zeploid"]
-	path = scripts/zeploid
-	url = https://github.com/aucguy/Zeploid.git
-[submodule "scripts/canvg"]
-	path = scripts/canvg
-	url = https://github.com/gabelerner/canvg.git
